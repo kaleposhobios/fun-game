@@ -5,12 +5,14 @@ import XCPlayground
 
 // Remember, to see the view you have to open the assistant editor (the double-loop button in the upper right)
 
+// In reality you wouldn't have all the code in one place, you should use classes ☺️
+
 // Set up some constants to use later, so it's easier to change values
 let labelXSpacer: CGFloat = 10
 let labelYSpacer: CGFloat = 15
 
 // Set up the main view to use
-let view = UIView(frame: CGRect(x: 0, y: 0, width: 400, height: 600))
+let view = UIView(frame: CGRect(x: 0, y: 0, width: 400, height: 400))
 view.backgroundColor = UIColor.whiteColor()
 XCPlaygroundPage.currentPage.liveView = view
 
@@ -28,11 +30,7 @@ grayView.translatesAutoresizingMaskIntoConstraints = false
 // Add the subview to the parent view. Have to add it before you can set any constraints.
 view.addSubview(grayView)
 
-// Center the subview horizontally in the view. Constraints like this define one item to another, and are good for centering, for example.
-view.addConstraint(NSLayoutConstraint(item: grayView, attribute: NSLayoutAttribute.CenterX, relatedBy: NSLayoutRelation.Equal, toItem: view, attribute: .CenterX, multiplier: 1, constant: 0))
-
-// Center the subview vertically in the view
-view.addConstraint(NSLayoutConstraint(item: grayView, attribute: NSLayoutAttribute.CenterY, relatedBy: NSLayoutRelation.Equal, toItem: view, attribute: .CenterY, multiplier: 1, constant: 0))
+grayView.center = view.center
 
 // Since we will be adding a few labels to the gray view, and positioning the related to all 4 of the gray view's sides, they will give the gray view its width and height. So we don't need to add constraints for that.
 let titleLabel = UILabel(frame: CGRect.zero)
@@ -54,10 +52,86 @@ subtitleLabel.backgroundColor = .whiteColor()
 subtitleLabel.textAlignment = .Center
 grayView.addSubview(subtitleLabel)
 
+let button = UIButton(frame: CGRect.zero)
+button.translatesAutoresizingMaskIntoConstraints = false
+button.setTitle("Bounce me", forState: UIControlState.Normal)
+button.setTitleColor(.blackColor(), forState: .Normal)
+view.addSubview(button)
+
+let fadeButton = UIButton(frame: CGRect.zero)
+fadeButton.translatesAutoresizingMaskIntoConstraints = false
+fadeButton.setTitle("Fade the box", forState: UIControlState.Normal)
+fadeButton.setTitleColor(.blackColor(), forState: .Normal)
+view.addSubview(fadeButton)
+
+// Create the animator to use
+let animator = UIDynamicAnimator(referenceView: view)
+
+// Provide an object that can be the button target since 
+// there is no `self` in playground
+class ButtonTarget: NSObject {
+    var moveTargetView: UIView
+    var fadeTargetView: UIView
+    var animator: UIDynamicAnimator
+
+    init(moveTargetView: UIView,
+         fadeTargetView: UIView,
+         animator: UIDynamicAnimator) {
+        self.moveTargetView = moveTargetView
+        self.fadeTargetView = fadeTargetView
+        self.animator = animator
+    }
+
+    func moveView() {
+        // push the view
+        let push = UIPushBehavior(items: [moveTargetView], mode: .Instantaneous)
+        push.angle = 2
+        push.magnitude = 20
+        animator.addBehavior(push)
+    }
+
+    func fadeView() {
+        // Fade the view out or in. Incomplete logic because it doesn't handle the "is currnetly animating" case
+        var newAlpha: CGFloat = 0
+        if fadeTargetView.alpha == 0 {
+            newAlpha = 1
+        } else {
+            newAlpha = 0
+        }
+        // Duration in seconds
+        UIView.animateWithDuration(1, animations: {
+            self.fadeTargetView.alpha = newAlpha
+        })
+    }
+}
+
+let target = ButtonTarget(moveTargetView: button,
+                          fadeTargetView: grayView,
+                          animator: animator)
+button.addTarget(target, action: #selector(ButtonTarget.moveView), forControlEvents: .TouchUpInside)
+fadeButton.addTarget(target, action: #selector(ButtonTarget.fadeView), forControlEvents: .TouchUpInside)
+
 // Now, use Visual Format Language (VFL) to constrain the views. VFL is good for defining relationships betweeen multiple items at once.
 // The constraint must be added to whatever is the parent (or self) of all involved views.
+view.addConstraints(NSLayoutConstraint.constraintsWithVisualFormat("V:[button][fadeButton]|", options: NSLayoutFormatOptions(rawValue: 0), metrics: nil, views: ["button": button, "fadeButton":fadeButton]))
 grayView.addConstraints(NSLayoutConstraint.constraintsWithVisualFormat("V:|-(spacer)-[titleLabel]-(10)-[subtitleLabel]-(spacer)-|", options: NSLayoutFormatOptions(rawValue: 0), metrics: ["spacer": labelYSpacer], views: ["titleLabel": titleLabel, "subtitleLabel": subtitleLabel]))
 grayView.addConstraints(NSLayoutConstraint.constraintsWithVisualFormat("H:|-(spacer)-[label]-(spacer)-|", options: NSLayoutFormatOptions(rawValue: 0), metrics: ["spacer": labelXSpacer], views: ["label": titleLabel]))
 grayView.addConstraints(NSLayoutConstraint.constraintsWithVisualFormat("H:|-(spacer)-[label]-(spacer)-|", options: NSLayoutFormatOptions(rawValue: 0), metrics: ["spacer": labelXSpacer], views: ["label": subtitleLabel]))
+view.addConstraint(NSLayoutConstraint(item: button, attribute: .CenterX, relatedBy: .Equal, toItem: view, attribute: .CenterX, multiplier: 1, constant: 0))
+view.addConstraint(NSLayoutConstraint(item: fadeButton, attribute: .CenterX, relatedBy: .Equal, toItem: view, attribute: .CenterX, multiplier: 1, constant: 0))
+
+
+// Force constraints to be evaluated
+view.layoutSubviews()
+
+// Add some dynamic animation, namely some gravity
+let gravity = UIGravityBehavior(items: [grayView, button, fadeButton])
+animator.addBehavior(gravity)
+
+// Add some collision detection
+let collision = UICollisionBehavior(items: [grayView, button, fadeButton])
+collision.translatesReferenceBoundsIntoBoundary = true
+animator.addBehavior(collision)
+
 
 
